@@ -1,26 +1,92 @@
 import sys, os, glob, getopt, time
 import logging
+from PIL import Image
 
 # STATIC **********************************************************************
 
 FILE_EXT = 'png'
 NAME_LEN = 8
 NAME_UPPER = True
+PSD04_BOX_SIZE = (55, 62)
+PSD04_BOX_SPACING_X = 59
+PSD04_TEMPLATE = '04-template.png'
+PSD04 = '04.png'
 
 # PUBLIC **********************************************************************
+
+class Item:
+  def __init__(self, file):
+    self.file = file
 
 # PRIVATE *********************************************************************
 
 def process(boxartdirpath, templatedirpath):
-    files = getfiles(boxartdirpath)
+    items = []
+    items = filestep(items, boxartdirpath)
+    items = namestep(items)
+    items = psd04thumbstep(items)
+    for i in items:
+        print(i.index)
+        print(i.file)
+        print(i.name)
+        print(i.psd04thumb)
+    items = psd04createstep(items, boxartdirpath)
+
+# https://note.nkmk.me/en/python-pillow-paste/
+def psd04createstep(items, boxartdirpath):
+    file = os.path.join(boxartdirpath, PSD04)
+    im1 = Image.open(os.path.join(boxartdirpath, PSD04_TEMPLATE))
+    back_im = im1.copy()
+    back_im = im1.convert('RGB')
+    for i in items:
+        im2 = Image.open(i.psd04thumb)
+        box = (i.index * PSD04_BOX_SPACING_X, 0)
+        back_im.paste(im2, box)
+    back_im = back_im.convert('P')
+    back_im.save(file, quality=95)
+    return items
+
+def filestep(items, path):
+    items = []
+    files = glob.glob(f"{path}/*.{FILE_EXT}")
+    index = 0
     for file in files:
         print(file)
-        name = buildname(file)
-        print(name)
+        if '04.png' in file:
+            continue
+        if '04-template.png' in file:
+            continue
+        item = Item(file)
+        item.index = index
+        index = index + 1
+        items.append(item)
+    return items
 
-def getfiles(path):
-    files = glob.glob(f"{path}/*.{FILE_EXT}")
-    return files
+def namestep(items):
+    for i in items:
+        i.name = buildname(i.file)
+    return items
+
+def psd04thumbstep(items):
+    for i in items:
+        i.psd04thumb = psd04thumb(i.file, i.name)
+    return items
+
+def psd04thumb(path, name):
+    rgbimg = Image.open(path)
+    resizeimg = rgbimg.resize(PSD04_BOX_SIZE)
+    resizeimg = resizeimg.convert('RGB')
+    dirname = os.path.dirname(path)
+    tmpname = createdir(os.path.join(dirname, '_tmp', 'psd04thumbs'))
+    mewfilename = os.path.join(tmpname, f'{name}.{FILE_EXT}')
+    resizeimg.save(mewfilename)
+    return mewfilename
+
+def createdir(tmpname):
+    isExist = os.path.exists(tmpname)
+    if not isExist:
+        os.makedirs(tmpname)
+    return tmpname
 
 def buildname(path):
     filename = os.path.basename(path)
