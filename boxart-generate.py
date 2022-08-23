@@ -1,16 +1,28 @@
 import sys, os, glob, getopt, time
 import logging
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 # STATIC **********************************************************************
 
 FILE_EXT = 'png'
-NAME_LEN = 8
+NAME_LEN = 16
 NAME_UPPER = True
 PSD04_BOX_SIZE = (55, 62)
 PSD04_BOX_SPACING_X = 59
-PSD04_TEMPLATE = '04-template.png'
 PSD04 = '04.png'
+PSD01 = '01.png'
+PSD01_BOX_SPACING_X = 30
+PSD01_BOX_SPACING_Y = 28
+PSD01_BOX_SPACING_T = 154
+PSD01_BOX_COLOR = (255,255,255)
+PSD01_NAME_FONT = 'upheavtt.ttf'
+PSD01_NAME_SIZE = 22
+PSD01_NAME_BORDER_COLOR = (96,96,96)
+PSD01_NAME_BORDER_SIZE = 2
+
+RES_DIR = 'resources'
+
+RES_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), RES_DIR)
 
 # PUBLIC **********************************************************************
 
@@ -25,17 +37,53 @@ def process(boxartdirpath, templatedirpath):
     items = filestep(items, boxartdirpath)
     items = namestep(items)
     items = psd04thumbstep(items)
+    psd04 = psd04createstep(items, boxartdirpath)
+    psd01 = psd01createstep(items, boxartdirpath)
+    print('Batch Result:')
+    print(psd04)
+    print(psd01)
+
+def psd01createstep(items, boxartdirpath):
+    file = os.path.join(boxartdirpath, PSD01)
+    tpl = os.path.join(RES_PATH, PSD01)
+    im1 = Image.open(tpl)
+    back_im = im1.copy()
+    back_im = back_im.convert('RGB')
+    back_im.save(file, quality=95)
     for i in items:
-        print(i.index)
-        print(i.file)
-        print(i.name)
-        print(i.psd04thumb)
-    items = psd04createstep(items, boxartdirpath)
+        xy = ( PSD01_BOX_SPACING_X, PSD01_BOX_SPACING_T + i.index * PSD01_BOX_SPACING_Y)
+        writetexttoimage(file, i.name, xy)
+    im2 = Image.open(file)
+    im2 = im2.convert('P')
+    im2.save(file, quality=95)
+    return file
+
+def writetexttoimage(file, text, xy):
+    img = Image.open(file)
+    d1 = ImageDraw.Draw(img)
+    font = getfont(PSD01_NAME_FONT, PSD01_NAME_SIZE)
+    thick = PSD01_NAME_BORDER_SIZE
+    x = xy[0]
+    y = xy[1]
+    shadowcolor = PSD01_NAME_BORDER_COLOR
+    d1.text((x-thick, y), text, font=font, fill=shadowcolor)
+    d1.text((x+thick, y), text, font=font, fill=shadowcolor)
+    d1.text((x, y-thick), text, font=font, fill=shadowcolor)
+    d1.text((x, y+thick), text, font=font, fill=shadowcolor)
+    d1.text(xy, text, PSD01_BOX_COLOR, font=font)
+    img.save(file)
+
+def getfont(fontname, fontsize):
+    fonts_path = os.path.join(RES_PATH, fontname)
+    print(fonts_path)
+    font = ImageFont.truetype(fonts_path, fontsize)
+    return font
 
 # https://note.nkmk.me/en/python-pillow-paste/
 def psd04createstep(items, boxartdirpath):
     file = os.path.join(boxartdirpath, PSD04)
-    im1 = Image.open(os.path.join(boxartdirpath, PSD04_TEMPLATE))
+    tpl = os.path.join(RES_PATH, PSD04)
+    im1 = Image.open(tpl)
     back_im = im1.copy()
     back_im = im1.convert('RGB')
     for i in items:
@@ -44,7 +92,7 @@ def psd04createstep(items, boxartdirpath):
         back_im.paste(im2, box)
     back_im = back_im.convert('P')
     back_im.save(file, quality=95)
-    return items
+    return file
 
 def filestep(items, path):
     items = []
@@ -54,7 +102,7 @@ def filestep(items, path):
         print(file)
         if '04.png' in file:
             continue
-        if '04-template.png' in file:
+        if '01.png' in file:
             continue
         item = Item(file)
         item.index = index
@@ -69,7 +117,7 @@ def namestep(items):
 
 def psd04thumbstep(items):
     for i in items:
-        i.psd04thumb = psd04thumb(i.file, i.name)
+        i.psd04thumb = psd04thumb(i.file, i.index)
     return items
 
 def psd04thumb(path, name):
