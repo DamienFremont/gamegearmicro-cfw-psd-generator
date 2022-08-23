@@ -6,12 +6,11 @@ from PIL import Image, ImageDraw, ImageFont
 
 FILE_EXT = 'png'
 NAME_LEN = 16
-NAME_UPPER = True
 PSD04_BOX_SIZE = (55, 62)
 PSD04_BOX_SPACING_X = 59
 PSD04 = '04.png'
 PSD01 = '01.png'
-PSD01_BOX_SPACING_X = 30
+PSD01_BOX_SPACING_X = 10
 PSD01_BOX_SPACING_Y = 28
 PSD01_BOX_SPACING_T = 154
 PSD01_BOX_COLOR = (255,255,255)
@@ -32,18 +31,18 @@ class Item:
 
 # PRIVATE *********************************************************************
 
-def process(boxartdirpath, templatedirpath):
+def process(boxartdirpath, title):
     items = []
     items = filestep(items, boxartdirpath)
     items = namestep(items)
     items = psd04thumbstep(items)
     psd04 = psd04createstep(items, boxartdirpath)
-    psd01 = psd01createstep(items, boxartdirpath)
+    psd01 = psd01createstep(items, boxartdirpath, title)
     print('Batch Result:')
     print(psd04)
     print(psd01)
 
-def psd01createstep(items, boxartdirpath):
+def psd01createstep(items, boxartdirpath, title):
     file = os.path.join(boxartdirpath, PSD01)
     tpl = os.path.join(RES_PATH, PSD01)
     im1 = Image.open(tpl)
@@ -52,7 +51,9 @@ def psd01createstep(items, boxartdirpath):
     back_im.save(file, quality=95)
     for i in items:
         xy = ( PSD01_BOX_SPACING_X, PSD01_BOX_SPACING_T + i.index * PSD01_BOX_SPACING_Y)
-        writetexttoimage(file, i.name, xy)
+        text = f'{i.index}. {i.name}'
+        writetexttoimage(file, text, xy)
+    writetexttoimage(file, f'{title.upper()}:', (10, 130))
     im2 = Image.open(file)
     im2 = im2.convert('P')
     im2.save(file, quality=95)
@@ -139,7 +140,7 @@ def createdir(tmpname):
 def buildname(path):
     filename = os.path.basename(path)
     name = os.path.splitext(filename)[0]
-    case = name.upper() if NAME_UPPER else name
+    case = name.upper()
     trunc = case[:NAME_LEN]
     return trunc
 
@@ -239,12 +240,14 @@ def strtobool (val):
 
 def main(argv):
     argd = getargs(argv, [
-        { 'opt':'dirpath',  'defarg':'.' }])
+        { 'opt':'dirpath',  'defarg':'.' },
+        { 'opt':'title',  'defarg':'' }])
+    dirpath = argd.get("dirpath")
+    title = argd.get("title")
     print("GGM boxart generator")
     print(f'Exec. path : {os.getcwd()}')
-    dirpath = argd.get("dirpath")
     print(f'BoxArt. path : {dirpath}')
-    process(dirpath, 0)
+    process(dirpath, title)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
