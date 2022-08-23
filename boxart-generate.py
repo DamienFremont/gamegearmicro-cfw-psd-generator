@@ -8,26 +8,28 @@ FILE_EXT = 'png'
 TMP_DIR = '_tmp'
 
 PSD01 = '01.png'
-PSD01_BOX_SPACING_X = 10
-PSD01_BOX_SPACING_Y = 28
-PSD01_BOX_SPACING_T = 154
-
-NAME_LEN = 16
-PSD01_NAME_SIZE = 22
-PSD01_BOX_COLOR = (255,255,255)
-PSD01_NAME_FONT = 'upheavtt.ttf'
-PSD01_NAME_BORDER_COLOR = (96,96,96)
-PSD01_NAME_BORDER_SIZE = 2
+PSD01_NAME_POS = (0, 28)
+PSD01_NAME_PADDING = (50, 156)
+PSD01_TITLE_POS = (30, 127)
 
 PSD03 = '03.png'
 PSD03_BOX_SIZE = (82, 94)
 PSD03_BOX_POS = (240, 0)
 PSD03_BOX_BORDER = (80, 27)
+PSD03_NAME_POS = (240, 0)
+PSD03_NAME_PADDING = (40, 149)
 
 PSD04 = '04.png'
 PSD04_BOX_SIZE = (51, 58)
 PSD04_BOX_POS = (59, 0)
 PSD04_BOX_BORDER = (2, 2)
+
+TEXT_LEN = 16
+TEXT_SIZE = 18
+TEXT_COLOR = (255,255,255)
+TEXT_FONT = 'upheavtt.ttf'
+TEXT_BORDER_SIZE = (2,2)
+TEXT_BORDER_COLOR = (96,96,96)
 
 RES_DIR = 'resources'
 RES_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), RES_DIR)
@@ -66,20 +68,11 @@ def psd01createstep(items, path):
     tmpfile = os.path.join(tmpdir, PSD01)
     file = os.path.join(path, PSD01)
     tpl = os.path.join(RES_PATH, PSD01)
-    im1 = Image.open(tpl)
-    back_im = im1.copy()
-    back_im = back_im.convert('RGB')
-    back_im.save(tmpfile, quality=95)
-    for i in items:
-        xy = ( PSD01_BOX_SPACING_X, PSD01_BOX_SPACING_T + i.index * PSD01_BOX_SPACING_Y)
-        name = f'{i.index + 1}. {i.name}'
-        writetexttoimage(tmpfile, name, xy)
-    dirname = os.path.basename(os.path.normpath(path))
-    title = f'{dirname.replace("_"," ")}'
-    writetexttoimage(tmpfile, title, (30, 127))
-    im2 = Image.open(tmpfile)
-    im2 = im2.convert('P')
-    im2.save(file, quality=95)
+    pos = PSD01_NAME_POS
+    border = PSD01_NAME_PADDING
+    writenamestoimage(items, tpl, tmpfile, pos, border)
+    writetitletoimage(path, tmpfile)
+    saveto8bit(tmpfile, file)
     return file
 
 # https://note.nkmk.me/en/python-pillow-paste/
@@ -92,6 +85,7 @@ def psd04createstep(items, path):
 def psd03createstep(items, path):
     file = os.path.join(path, PSD03)
     tmpfile = pastthumbs(items, path, PSD03, '03', 'psd03thumb', PSD03_BOX_POS, PSD03_BOX_BORDER)
+    tmpfile = writenamestoimage(items, tmpfile, tmpfile, PSD03_NAME_POS, PSD03_NAME_PADDING)
     file = saveto8bit(tmpfile, file)
     return file
 
@@ -107,6 +101,22 @@ def pastthumbs(items, path, key, key2, fieldname, pos, border):
         box = (i.index * pos[0] + border[0], i.index * pos[1] + border[1])
         back_im.paste(im2, box)
     back_im.save(tmpfile, quality=95)
+    return tmpfile
+
+def writenamestoimage(items, tpl, tmpfile, pos, border):
+    im1 = Image.open(tpl)
+    back_im = im1.copy()
+    back_im = back_im.convert('RGB')
+    back_im.save(tmpfile, quality=95)
+    for i in items:
+        xy = (i.index * pos[0] + border[0], i.index * pos[1] + border[1])
+        writetexttoimage(tmpfile, i.name, xy)
+    return tmpfile
+
+def writetitletoimage(path, tmpfile):
+    dirname = os.path.basename(os.path.normpath(path))
+    title = f'{dirname.replace("_"," ")}'
+    writetexttoimage(tmpfile, title, PSD01_TITLE_POS)
     return tmpfile
 
 def saveto8bit(file, new):
@@ -182,22 +192,22 @@ def buildname(path):
     filename = os.path.basename(path)
     name = os.path.splitext(filename)[0]
     case = name.upper()
-    trunc = case[:NAME_LEN]
+    trunc = case[:TEXT_LEN]
     return trunc
 
 def writetexttoimage(file, text, xy):
     img = Image.open(file)
     d1 = ImageDraw.Draw(img)
-    font = getfont(PSD01_NAME_FONT, PSD01_NAME_SIZE)
-    thick = PSD01_NAME_BORDER_SIZE
+    font = getfont(TEXT_FONT, TEXT_SIZE)
+    thick = TEXT_BORDER_SIZE[0]
     x = xy[0]
     y = xy[1]
-    shadowcolor = PSD01_NAME_BORDER_COLOR
+    shadowcolor = TEXT_BORDER_COLOR
     d1.text((x-thick, y), text, font=font, fill=shadowcolor)
     d1.text((x+thick, y), text, font=font, fill=shadowcolor)
     d1.text((x, y-thick), text, font=font, fill=shadowcolor)
     d1.text((x, y+thick), text, font=font, fill=shadowcolor)
-    d1.text(xy, text, PSD01_BOX_COLOR, font=font)
+    d1.text(xy, text, TEXT_COLOR, font=font)
     img.save(file)
 
 def getfont(fontname, fontsize):
